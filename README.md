@@ -124,7 +124,7 @@ virus-js/
 - **Sandbox scope**: the sandbox root is a single fixed directory (`./sandbox`) created next to the project, not configurable via CLI flags or environment variables — this prevents a user (or injected input) from redirecting the sandbox elsewhere.
 - **CRUD definition**: "Create" fails if the file already exists (use `update --append`/overwrite for existing files), to avoid silent data loss by default.
 
-## 10. ⚠️ Safety & Ethics
+## 10. Safety & Ethics
 
 This tool was built under hard, non-negotiable constraints specifically to avoid crossing from "themed hackathon project" into "actual malware":
 
