@@ -1,0 +1,16 @@
+{
+  "name": "virus-js",
+  "version": "1.0.0",
+  "description": "Educational, sandboxed system-info & file CRUD CLI utility (Thunder Hackathon 3.0 - 'Create a Virus in JS' theme). NOT malware: no networking, no process execution, no persistence, sandboxed file access only.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^12.1.0"
+  }
+}
