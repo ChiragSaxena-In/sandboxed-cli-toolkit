@@ -35,13 +35,13 @@ Every design decision below exists specifically to demonstrate the difference be
 
 ```mermaid
 flowchart LR
-    A[CLI entry: index.js] --> B[cli.js: commander parses 'info']
+    A[CLI entry: index.js] --> B[cli.js: commander parses info]
     B --> C[systemInfo.js collector]
-    B --> D[envInfo.js collector — allowlist only]
+    B --> D[envInfo.js collector, allowlist only]
     C --> E[formatter.js: console table]
     D --> E
-    E --> F{--json flag?}
-    F -- yes --> G[exporter.js: write reports/report-*.json]
+    E --> F{json flag?}
+    F -- yes --> G[exporter.js: write reports report file]
     F -- no --> H[done]
 ```
 
@@ -49,13 +49,13 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    A[CLI entry: index.js] --> B[cli.js: commander parses 'crud <op>']
+    A[CLI entry: index.js] --> B[cli.js: commander parses crud op]
     B --> C[sandbox.js: resolveSandboxPath]
     C -- escape attempt --> D[SandboxViolationError]
     D --> E[auditLogger.js: log rejected attempt]
-    C -- valid path --> F{destructive op? update/delete}
-    F -- yes, not --dry-run --> G[confirm via --yes or interactive prompt]
-    F -- no / dry-run --> H[crud.js: perform fs operation]
+    C -- valid path --> F{destructive op? update or delete}
+    F -- "yes, no dry run flag" --> G[confirm via yes flag or interactive prompt]
+    F -- "no, or dry run" --> H[crud.js: perform fs operation]
     G -- confirmed --> H
     G -- not confirmed --> I[fail result, no mutation]
     H --> J[auditLogger.js: log outcome]
@@ -85,13 +85,13 @@ virus-js/
 │   │   └── sandbox.js        // path validation + sandbox root management
 │   ├── output/
 │   │   ├── formatter.js      // console table + chalk coloring
-│   │   └── exporter.js       // JSON export to reports/
+│   │   ├── exporter.js       // JSON export to reports/
 │   │   └── dashboard.js      // static HTML dashboard renderer
 │   ├── audit/
 │   │   └── auditLogger.js    // appends JSON-line entries to sandbox/.audit.log
 │   └── cli.js                // commander setup, wires everything together
 ├── sandbox/                  // created at runtime; CRUD playground
-├── reports/                  // created at runtime; JSON exports
+├── reports/                  // created at runtime; JSON exports + dashboard.html
 ├── index.js                  // entry point, requires src/cli.js
 ├── package.json
 ├── .gitignore
@@ -223,17 +223,6 @@ $ node index.js crud read "../../etc/passwd"
 └─────────┴─────────────────────────────────────────────┘
 ```
 
-## 11a. Dashboard Output (`node index.js dashboard`)
-
-Writes `reports/dashboard.html` — a single static file with no external requests, derived entirely from data already collected in-process (same `systemInfo`/`envInfo` collectors, plus `readAuditLog()`). Sections:
-
-- **Stat strip**: OS, platform, CPU, memory, uptime
-- **Environment panel**: allowlisted env vars
-- **Audit summary**: total/succeeded/failed/rejected counts + per-action breakdown
-- **Audit log timeline**: every CRUD attempt with a status indicator (ok / blocked / failed), timestamp, target path, and detail
-
-Color scheme follows `prefers-color-scheme` (light/dark), no JS-based theme toggle or stored preference needed.
-
 ### Audit log (`sandbox/.audit.log`, real run, JSON lines)
 
 ```json
@@ -273,6 +262,17 @@ Color scheme follows `prefers-color-scheme` (light/dark), no JS-based theme togg
 }
 ```
 
+### Dashboard output (`node index.js dashboard`)
+
+Writes `reports/dashboard.html` — a single static file with no external requests, derived entirely from data already collected in-process (same `systemInfo`/`envInfo` collectors, plus `readAuditLog()`). Sections:
+
+- **KPI row**: host, OS/platform/arch, Node version, CPU, memory usage, uptime
+- **Environment panel**: allowlisted env vars
+- **Audit summary**: success-rate ring + succeeded/failed/sandbox-rejected/total counts, per-action breakdown
+- **Activity log**: every CRUD attempt with a status pill (OK / BLOCKED / FAILED), timestamp, action, target path, and detail
+
+Color scheme follows `prefers-color-scheme` (light/dark), no JS-based theme toggle or stored preference needed. Fully responsive down to mobile widths.
+
 ## 12. How to Run
 
 ```bash
@@ -310,3 +310,4 @@ node index.js dashboard
 - Plugin-style collectors so new system-info sections can be registered without touching `cli.js`.
 - Automated test suite (e.g. `node:test` or `vitest`) covering sandbox-escape edge cases, confirmation gating, and graceful-fallback paths.
 - Packaged single binary (e.g. via `pkg` or Node's built-in SEA) for distribution without requiring `npm install`.
+- Auto-open the dashboard in the default browser after generation, with a `--no-open` escape hatch for headless/CI environments.
