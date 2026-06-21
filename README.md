@@ -4,30 +4,30 @@
 
 ## 1. Project Overview
 
-**This is not malware.** Despite the hackathon's provocative theme, this project is a legitimate, defensively-engineered Node.js CLI tool: it reports basic, harmless system information and lets the user perform file Create/Read/Update/Delete (CRUD) operations — but **only** inside a sandbox directory that the tool itself creates and controls.
+**This is not malware, I promise.** The hackathon theme was basically daring people to write something sketchy, so I went the other way: virus-js is a CLI tool that reports basic system info and lets you do file CRUD (create/read/update/delete) — but only inside a sandbox folder it creates and controls itself.
 
-Every design decision below exists specifically to demonstrate the difference between "a program that could be confused for a virus" and "a program that actually behaves like one." There is no networking, no process execution, no persistence/auto-run mechanism, no stealth, no raw environment dump, and every destructive action is gated behind confirmation and logged to an audit trail.
+Every choice in this project is there to show the gap between "code that *looks* like it could be a virus" and "code that actually *acts* like one." No networking, no spawning processes, nothing that persists or auto-runs, no hiding what it's doing, no dumping your whole environment — and anything destructive needs confirmation and gets logged.
 
 ## 2. Objectives
 
-- Collect and display system information and a small, explicit set of environment variables in a structured, readable format (console table + optional JSON export).
-- Perform sandboxed file CRUD operations, never touching anything outside `./sandbox`.
-- Never crash, regardless of missing data, bad input, or filesystem errors.
-- Log every CRUD action (success or failure) to an audit log.
-- Document the architecture and safety rationale clearly enough that a reviewer can verify the "not a virus" claim by reading the code.
+- Show system info and a small, named set of env variables in a readable way (table in the console, or export it as JSON).
+- Let you do file CRUD, but never let it touch anything outside `./sandbox`.
+- Don't crash. Ever. Even with weird input or filesystem errors.
+- Log every CRUD action, whether it worked or not.
+- Make the safety reasoning clear enough that someone could read the code and actually verify "yeah, this isn't malware."
 
 ## 3. Features
 
-- `info` command: OS/CPU/memory/uptime summary + allowlisted environment variables, color-coded console tables.
-- `crud create|read|update|delete` commands, all sandbox-validated.
-- Path-traversal and absolute-path rejection (logged, not silently corrected).
-- `--dry-run` on `update`/`delete` to preview effects with zero mutation.
-- `--yes` flag to skip the interactive confirmation prompt for scripted/CI use; otherwise an interactive y/N prompt guards destructive actions.
-- Append vs. overwrite modes for `update`.
-- JSON-lines audit log (`sandbox/.audit.log`) for every CRUD attempt, including rejected ones.
-- `--json` flag to export a full report to `reports/report-<timestamp>.json`.
-- Defensive error handling throughout: every collector and every file operation is individually try/caught; a top-level `uncaughtException`/`unhandledRejection` safety net guarantees a clean exit instead of a crash.
-- `dashboard` command: generates a static, self-contained HTML dashboard (`reports/dashboard.html`) summarizing system info, allowlisted env vars, and the full CRUD audit trail — light/dark theme follows OS preference automatically. No server, no networking; just a file written to disk.
+- `info` command — OS/CPU/memory/uptime, plus allowlisted env vars, color-coded in the console.
+- `crud create|read|update|delete` — all sandbox-checked.
+- Path traversal and absolute paths get flat-out rejected (and logged) — never silently "fixed."
+- `--dry-run` on `update`/`delete` so you can preview what would happen without it actually happening.
+- `--yes` to skip the confirmation prompt (handy for scripts/CI); otherwise you get an interactive y/N before anything destructive runs.
+- `update` can append or overwrite.
+- Every CRUD attempt — success, fail, or rejected — gets written to `sandbox/.audit.log` as JSON lines.
+- `--json` flag dumps a full report to `reports/report-<timestamp>.json`.
+- Defensive error handling everywhere — every collector and file op is wrapped in its own try/catch, plus a top-level safety net (`uncaughtException`/`unhandledRejection`) so nothing ever crashes with a raw stack trace.
+- `dashboard` command — spits out a clean static HTML dashboard (`reports/dashboard.html`) with system info, env vars, and the full audit trail. Light/dark follows your OS automatically. Still just a file on disk — no server, no networking.
 
 ## 4. Code Flow
 
@@ -63,14 +63,14 @@ flowchart LR
     J --> K[formatter.js: print result]
 ```
 
-## 5. Strategy / Design Rationale
+## 5. Strategy / Why I Built It This Way
 
-- **Sandbox-first architecture**: `sandbox.js` is the single chokepoint every path must pass through. No other module is allowed to build a filesystem path from user input directly — this makes the security property auditable in one file instead of scattered across the codebase.
-- **Allowlist over blocklist**: rather than trying to block "bad" environment variable names, we only ever read a fixed, named list. This is strictly safer because it can't miss a future sensitive variable name.
-- **Uniform result shape** (`{ success, error?, data? }`) from every CRUD function so the formatter and exporter don't need operation-specific branching, and so failures are data, not exceptions, at the call site.
-- **Async I/O via `fs/promises`** throughout, avoiding blocking the event loop.
-- **Graceful degradation everywhere**: every system-info field independently falls back to `"N/A"`; every env var independently falls back to `"not set"`. One platform quirk never sinks the whole report.
-- **Audit log as the accountability layer**: because the tool can mutate files (even if only inside the sandbox), every attempt — successful, failed, or rejected for security reasons — is appended to `sandbox/.audit.log` as JSON lines, which is easy to grep, parse, or replay.
+- **One chokepoint for paths**: `sandbox.js` is the only place allowed to turn user input into an actual filesystem path. Nothing else builds a path directly — so the whole security story lives in one file instead of being scattered everywhere.
+- **Allowlist, not blocklist**: instead of trying to guess which env vars are "dangerous," I just only ever read a fixed list of harmless ones. Way safer — you can't accidentally miss a sensitive var you didn't think of.
+- **Every CRUD function returns the same shape** (`{ success, error?, data? }`), so the formatter/exporter don't need special cases per operation, and failures are just data instead of thrown exceptions.
+- **Everything's async** (`fs/promises`), so nothing blocks the event loop.
+- **Stuff degrades gracefully**: if one system-info field fails to read, it just shows `"N/A"` instead of taking down the whole report. Same with env vars → `"not set"`.
+- **Audit log = accountability**: since this thing can mutate files (even sandboxed ones), every single attempt gets appended to `sandbox/.audit.log` as JSON lines — easy to grep, parse, replay, whatever.
 
 ## 6. Folder Structure
 
@@ -111,31 +111,31 @@ virus-js/
 | `chalk` | console color coding |
 | `cli-table3` | console table rendering |
 
-## 8. Error Handling Strategy
+## 8. Error Handling
 
-- Every individual data-collection call (`os.cpus()`, `os.version()`, etc.) is wrapped in its own try/catch via a `safe()` helper in `systemInfo.js`, falling back to `"N/A"` rather than throwing.
-- Every CRUD function catches filesystem errors and maps known codes (`ENOENT`, `EACCES`/`EPERM`, `EISDIR`, `EEXIST`) to friendly messages via `describeFsError()`, returning `{ success: false, error }` instead of throwing.
-- Sandbox violations throw a dedicated `SandboxViolationError`, caught at the call site in `crud.js`, logged, and converted into the same uniform failure shape — so the CLI/formatter layer never has to special-case it.
-- `index.js` installs `process.on('uncaughtException', ...)` and `process.on('unhandledRejection', ...)` as a final safety net, ensuring any truly unexpected error is logged to stderr and the process exits with code 1 instead of crashing with a raw stack trace.
+- Every individual system call (`os.cpus()`, `os.version()`, etc.) is wrapped in its own try/catch via a small `safe()` helper, falling back to `"N/A"` instead of blowing up.
+- Every CRUD function catches filesystem errors and turns known codes (`ENOENT`, `EACCES`/`EPERM`, `EISDIR`, `EEXIST`) into friendly messages instead of raw error dumps.
+- Sandbox violations throw a custom `SandboxViolationError`, caught right where it happens, logged, and turned into the same uniform failure shape — so nothing downstream has to special-case it.
+- `index.js` sets up `uncaughtException`/`unhandledRejection` handlers as a last resort, so anything truly unexpected gets logged to stderr and exits cleanly with code 1 instead of dumping a stack trace.
 
-## 9. Assumptions
+## 9. Assumptions I Made
 
-- **Allowlist choice**: `PATH/Path`, `USER/USERNAME`, `HOME/USERPROFILE`, `SHELL`, `LANG`, `NODE_ENV` were chosen as informational, low-sensitivity variables common across Unix and Windows. No credentials, tokens, or API keys are ever in scope.
-- **Sandbox scope**: the sandbox root is a single fixed directory (`./sandbox`) created next to the project, not configurable via CLI flags or environment variables — this prevents a user (or injected input) from redirecting the sandbox elsewhere.
-- **CRUD definition**: "Create" fails if the file already exists (use `update --append`/overwrite for existing files), to avoid silent data loss by default.
+- **Env allowlist**: picked `PATH/Path`, `USER/USERNAME`, `HOME/USERPROFILE`, `SHELL`, `LANG`, `NODE_ENV` since they're harmless and informational across both Unix and Windows. No creds, tokens, or API keys anywhere near this.
+- **Sandbox is fixed**: the sandbox root is always `./sandbox`, not configurable via flags or env vars — on purpose, so nobody (or nothing) can redirect it somewhere it shouldn't be.
+- **`create` fails if the file already exists** — use `update` (append or overwrite) for existing files. Didn't want silent overwrites by default.
 
-## 10. Safety & Ethics
+## 10. ⚠️ Safety & Ethics
 
-This tool was built under hard, non-negotiable constraints specifically to avoid crossing from "themed hackathon project" into "actual malware":
+Built this under some pretty strict self-imposed rules, specifically so it doesn't accidentally cross from "themed hackathon joke" into "actual malware":
 
-- **Sandboxed file access only.** Every path is resolved with `path.resolve()` and checked against the sandbox root; `..` traversal and absolute paths are rejected outright, never "corrected."
-- **No raw environment dump.** Only a fixed, explicit allowlist of variables is ever read — `process.env` is never enumerated as a whole.
-- **No networking code.** No `http`, `https`, `net`, `dgram`, `fetch`, or any outbound request anywhere in this codebase.
-- **No process execution.** No `child_process`, `exec`, `spawn`, or shelling out.
-- **No persistence mechanisms.** Nothing writes to startup folders, cron, systemd, the registry, or shell rc files. The tool only ever runs when explicitly invoked.
-- **No stealth or evasion.** No hidden processes, no disguised filenames, no suppressed output, no anti-debugging.
-- **Confirmation + dry-run on destructive operations.** `update` and `delete` require either an interactive y/N confirmation or an explicit `--yes` flag, and both support `--dry-run` to preview without mutating anything.
-- **Full audit logging.** Every CRUD attempt — including rejected sandbox-escape attempts — is appended to `sandbox/.audit.log` as a timestamped JSON line.
+- **Sandboxed file access only.** Every path goes through `path.resolve()` and gets checked against the sandbox root. `..` and absolute paths get rejected outright — never quietly "fixed."
+- **No raw env dump.** Only a fixed, explicit list of vars gets read. `process.env` never gets enumerated as a whole.
+- **No networking, period.** No `http`, `https`, `net`, `dgram`, `fetch` — nothing that reaches outside the machine.
+- **No process execution.** No `child_process`, `exec`, `spawn`, no shelling out to anything.
+- **No persistence.** Nothing touches startup folders, cron, systemd, the registry, shell rc files. It only ever runs when you explicitly run it.
+- **No stealth.** No hidden processes, no disguised filenames, no suppressed output, no anti-debugging tricks.
+- **Confirmation + dry-run on anything destructive.** `update` and `delete` need either an interactive yes or an explicit `--yes`, and both support `--dry-run` so you can preview first.
+- **Everything's logged.** Every CRUD attempt — including blocked sandbox-escape attempts — gets a timestamped line in the audit log.
 
 ## 11. Sample Output
 
@@ -264,14 +264,14 @@ $ node index.js crud read "../../etc/passwd"
 
 ### Dashboard output (`node index.js dashboard`)
 
-Writes `reports/dashboard.html` — a single static file with no external requests, derived entirely from data already collected in-process (same `systemInfo`/`envInfo` collectors, plus `readAuditLog()`). Sections:
+Writes `reports/dashboard.html` — one static file, zero outbound requests, built entirely from data already collected in-process (same `systemInfo`/`envInfo` collectors, plus `readAuditLog()`). What's on it:
 
 - **KPI row**: host, OS/platform/arch, Node version, CPU, memory usage, uptime
-- **Environment panel**: allowlisted env vars
-- **Audit summary**: success-rate ring + succeeded/failed/sandbox-rejected/total counts, per-action breakdown
-- **Activity log**: every CRUD attempt with a status pill (OK / BLOCKED / FAILED), timestamp, action, target path, and detail
+- **Environment panel**: your allowlisted env vars
+- **Audit summary**: a success-rate ring, plus succeeded/failed/sandbox-rejected/total counts, broken down by action type
+- **Activity log**: every CRUD attempt with a status pill (OK / BLOCKED / FAILED), timestamp, action, target path, and any detail
 
-Color scheme follows `prefers-color-scheme` (light/dark), no JS-based theme toggle or stored preference needed. Fully responsive down to mobile widths.
+Theme follows `prefers-color-scheme` automatically (light/dark) — no toggle, no stored preference, just reads your OS setting. Responsive down to mobile too.
 
 ## 12. How to Run
 
@@ -305,9 +305,9 @@ node index.js dashboard
 # then open reports/dashboard.html in a browser
 ```
 
-## 13. Future Improvements
+## 13. What's Next
 
-- Plugin-style collectors so new system-info sections can be registered without touching `cli.js`.
-- Automated test suite (e.g. `node:test` or `vitest`) covering sandbox-escape edge cases, confirmation gating, and graceful-fallback paths.
-- Packaged single binary (e.g. via `pkg` or Node's built-in SEA) for distribution without requiring `npm install`.
-- Auto-open the dashboard in the default browser after generation, with a `--no-open` escape hatch for headless/CI environments.
+- Plugin-style collectors, so new system-info sections can be added without touching `cli.js`.
+- An actual test suite (`node:test` or `vitest`) covering sandbox-escape edge cases, confirmation gating, and the fallback paths.
+- Maybe package it as a single binary (`pkg` or Node's built-in SEA) so people don't need to `npm install` just to try it.
+- Auto-open the dashboard in your browser after generating it, with a `--no-open` flag for headless/CI setups.
