@@ -124,7 +124,7 @@ virus-js/
 - **Sandbox is fixed**: the sandbox root is always `./sandbox`, not configurable via flags or env vars — on purpose, so nobody (or nothing) can redirect it somewhere it shouldn't be.
 - **`create` fails if the file already exists** — use `update` (append or overwrite) for existing files. Didn't want silent overwrites by default.
 
-## 10. ⚠️ Safety & Ethics
+## 10. Safety & Ethics
 
 Built this under some pretty strict self-imposed rules, specifically so it doesn't accidentally cross from "themed hackathon joke" into "actual malware":
 
@@ -154,7 +154,7 @@ Sandbox root: /home/claude/virus-js/sandbox
 ├─────────────────┼───────────────────────────────────────┤
 │ OS Release      │ 6.18.5                                │
 ├─────────────────┼───────────────────────────────────────┤
-│ OS Version      │ #1 SMP PREEMPT_DYNAMIC @0              │
+│ OS Version      │ #1 SMP PREEMPT_DYNAMIC @0             │
 ├─────────────────┼───────────────────────────────────────┤
 │ Platform        │ linux                                 │
 ├─────────────────┼───────────────────────────────────────┤
@@ -182,25 +182,25 @@ Sandbox root: /home/claude/virus-js/sandbox
 ─────────────────────────────────────
   (Only an explicit allowlist is read -- never a full process.env dump. See README.)
 ┌─────────────┬─────────────────────────────────────────────────────────┐
-│ Variable    │ Value                                                  │
+│ Variable    │ Value                                                   │
 ├─────────────┼─────────────────────────────────────────────────────────┤
-│ PATH        │ /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin │
+│ PATH        │ /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin  │
 ├─────────────┼─────────────────────────────────────────────────────────┤
-│ Path        │ not set                                                │
+│ Path        │ not set                                                 │
 ├─────────────┼─────────────────────────────────────────────────────────┤
-│ USER        │ not set                                                │
+│ USER        │ not set                                                 │
 ├─────────────┼─────────────────────────────────────────────────────────┤
-│ USERNAME    │ not set                                                │
+│ USERNAME    │ not set                                                 │
 ├─────────────┼─────────────────────────────────────────────────────────┤
-│ HOME        │ /root                                                  │
+│ HOME        │ /root                                                   │
 ├─────────────┼─────────────────────────────────────────────────────────┤
-│ USERPROFILE │ not set                                                │
+│ USERPROFILE │ not set                                                 │
 ├─────────────┼─────────────────────────────────────────────────────────┤
-│ SHELL       │ not set                                                │
+│ SHELL       │ not set                                                 │
 ├─────────────┼─────────────────────────────────────────────────────────┤
-│ LANG        │ not set                                                │
+│ LANG        │ not set                                                 │
 ├─────────────┼─────────────────────────────────────────────────────────┤
-│ NODE_ENV    │ not set                                                │
+│ NODE_ENV    │ not set                                                 │
 └─────────────┴─────────────────────────────────────────────────────────┘
 ```
 
@@ -219,7 +219,7 @@ $ node index.js crud read "../../etc/passwd"
 ├─────────┼─────────────────────────────────────────────┤
 │ Success │ false                                       │
 ├─────────┼─────────────────────────────────────────────┤
-│ Error   │ Rejected: ".." path traversal is not allowed.│
+│ Error   │ Rejected: ".." path traversal is not allowed│
 └─────────┴─────────────────────────────────────────────┘
 ```
 
