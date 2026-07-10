@@ -1,6 +1,6 @@
 # virus-js — System Info & File CRUD Utility
 
-> Thunder Hackathon 3.0 submission · theme: "Create a Virus in JS"
+> Hackathon submission · theme: "Create a Virus in JS"
 
 ## 1. Project Overview
 
